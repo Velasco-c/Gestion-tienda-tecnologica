@@ -1,176 +1,129 @@
-### Modelo mejorado
+````markdown
+# Evidencias — Gestión de Tienda Tecnológica
 
-* **clientes**
+## Modelo de datos
 
-  * `id_cliente` — PK
-  * `nombre`
-  * `apellido`
-  * `email` — UNIQUE
-  * `telefono`
+El modelo representa la gestión de una tienda tecnológica mediante las siguientes entidades:
 
-* **categorias**
+- **Clientes:** información de los compradores.
+- **Categorías:** clasificación de los productos.
+- **Productos:** catálogo de productos y precios.
+- **Empleados:** personal encargado de gestionar las ventas.
+- **Proveedores:** información de los proveedores.
+- **Inventario:** existencia disponible de cada producto y proveedor.
+- **Ventas:** información general de cada venta.
+- **Detalle de ventas:** productos, cantidades y precios asociados a una venta.
 
-  * `id_categoria` — PK
-  * `nombre` — UNIQUE
-
-* **productos**
-
-  * `id_producto` — PK
-  * `nombre`
-  * `precio_unitario`
-  * `id_categoria` — FK
-
-* **empleados**
-
-  * `id_empleado` — PK
-  * `nombre`
-  * `apellido`
-  * `puesto`
-
-* **inventario**
-
-  * `id_inventario` — PK
-  * `id_producto` — FK
-  * `stock_actual`
-  * `stock_minimo
-
-* **pedidos**
-
-  * `id_pedido` — PK
-  * `id_cliente` — FK
-  * `id_empleado` — FK
-  * `fecha_pedido`
-  * `fecha_entrega`
-  * `estado`
-  * `total`
-
-* **detalle_pedido**
-
-  * `id_detalle` — PK
-  * `id_pedido` — FK
-  * `id_producto` — FK
-  * `cantidad`
-  * `precio_unitario`
-  * `subtotal`
-
-* **proveedores**
-
-  * `id_proveedor` — PK
-  * `nombre`
-  * `telefono`
-  * `email`
-  * `direccion`
-
-### Mermaid ER
+## Diagrama entidad-relación
 
 ```mermaid
-  erDiagram
+erDiagram
+    CATEGORIAS ||--o{ PRODUCTOS : contiene
+    PRODUCTOS ||--|| INVENTARIO : posee
+    PROVEEDORES ||--o{ INVENTARIO : suministra
+    CLIENTES ||--o{ VENTAS : realiza
+    EMPLEADOS ||--o{ VENTAS : gestiona
+    VENTAS ||--|{ DETALLE_VENTAS : contiene
+    PRODUCTOS ||--o{ DETALLE_VENTAS : incluye
+
+    CATEGORIAS {
+        int categoria_id PK
+        varchar nombre UK
+    }
+
+    PRODUCTOS {
+        int producto_id PK
+        varchar nombre
+        decimal precio_unitario
+        int categoria_id FK
+    }
 
     CLIENTES {
-        int id_cliente PK
+        int cliente_id PK
         varchar nombre
         varchar apellido
         varchar email UK
         varchar telefono
     }
 
-    CATEGORIAS {
-        int id_categoria PK
-        varchar nombre UK
-    }
-
-    PRODUCTOS {
-        int id_producto PK
-        varchar nombre
-        decimal precio_unitario
-        int id_categoria FK
-    }
-
     EMPLEADOS {
-        int id_empleado PK
+        int empleado_id PK
         varchar nombre
         varchar apellido
         varchar puesto
     }
 
-    INVENTARIO {
-        int id_inventario PK
-        int id_producto FK
-        int stock_actual
-        int stock_minimo
+    PROVEEDORES {
+        int proveedor_id PK
+        varchar nombre
+        varchar apellido
+        varchar email UK
+        varchar telefono
+        varchar direccion
     }
 
-    PEDIDOS {
-        int id_pedido PK
-        int id_cliente FK
-        int id_empleado FK
-        date fecha_pedido
+    INVENTARIO {
+        int inventario_id PK
+        int producto_id FK
+        int proveedor_id FK
+        int stock_minimo
+        int stock_actual
+    }
+
+    VENTAS {
+        int venta_id PK
+        int cliente_id FK
+        int empleado_id FK
+        date fecha_venta
         date fecha_entrega
         varchar estado
         decimal total
     }
 
-    DETALLE_PEDIDO {
-        int id_detalle PK
-        int id_pedido FK
-        int id_producto FK
+    DETALLE_VENTAS {
+        int detalle_id PK
+        int venta_id FK
+        int producto_id FK
         int cantidad
         decimal precio_unitario
         decimal subtotal
     }
+````
 
-    PROVEEDORES {
-        int id_proveedor PK
-        varchar nombre
-        varchar telefono
-        varchar email
-        varchar direccion
-    }
+## Procedimiento almacenado
 
-    PROVEEDOR_PRODUCTO {
-        int id_proveedor FK
-        int id_producto FK
-        date fecha_entrega
-        int cantidad
-    }
+El procedimiento `registrar_venta` permite registrar una venta y actualizar el inventario correspondiente.
 
+Antes de realizar la operación verifica:
 
-    CATEGORIAS ||--o{ PRODUCTOS : contiene
+* existencia del cliente;
+* existencia del empleado;
+* existencia del producto;
+* cantidad solicitada;
+* disponibilidad del inventario.
 
-    PRODUCTOS ||--|| INVENTARIO : posee
+Posteriormente:
 
-    CLIENTES ||--o{ PEDIDOS : realiza
+1. obtiene el precio y stock del producto;
+2. calcula el total;
+3. registra la venta;
+4. registra el detalle de la venta;
+5. descuenta la cantidad correspondiente del inventario.
 
-    EMPLEADOS ||--o{ PEDIDOS : gestiona
+### Ejecución
 
-    PEDIDOS ||--|{ DETALLE_PEDIDO : contiene
-
-    PRODUCTOS ||--o{ DETALLE_PEDIDO : incluye
-
-    PROVEEDORES ||--o{ PROVEEDOR_PRODUCTO : suministra
-
-    PRODUCTOS ||--o{ PROVEEDOR_PRODUCTO : es_suministrado
-
+```sql
+CALL registrar_venta(1, 1, 1, 2);
 ```
 
-### Relaciones principales
+Si alguna validación falla, la operación genera una excepción y no continúa con el registro de la venta.
 
-```text
-CATEGORIA
-    │
-    └── 1:N ── PRODUCTO
-                   │
-                   ├── 1:1 ── INVENTARIO
-                   │
-                   └── 1:N ── DETALLE_PEDIDO ── N:1 ── PEDIDO
-                                                        │
-                                                        ├── N:1 ── CLIENTE
-                                                        │
-                                                        └── N:1 ── EMPLEADO
+## Cambios realizados
 
-PROVEEDOR
-    │
-    └── N:M ── PRODUCTO
-          mediante PROVEEDOR_PRODUCTO
-```
-
+* Se completó el procedimiento almacenado que se encontraba incompleto.
+* Se agregaron validaciones para clientes, empleados, productos y cantidades.
+* Se agregó validación de stock disponible.
+* Se incorporó bloqueo del registro de inventario durante la operación.
+* Se agregó el registro de la venta y su detalle.
+* Se agregó la actualización del stock.
+* Se actualizó la documentación para coincidir con las tablas actuales del proyecto.
